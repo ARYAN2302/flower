@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>A little sunshine for you 🌻</title>
+<style>
+  :root{ --bg:#faf6ec; --ink:#4a2c14; --muted:#7a6a53; }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);
+    font-family:Georgia,"Times New Roman",serif;}
+  body{min-height:100vh;display:flex;flex-direction:column;align-items:center;
+    background:radial-gradient(1200px 700px at 50% 16%, #fffdf4 0%, var(--bg) 60%, #f2e8d2 100%);}
+  header{text-align:center;padding:30px 20px 2px;max-width:660px;}
+  header h1{font-size:clamp(27px,4.5vw,42px);font-weight:600;letter-spacing:.3px;margin:0 0 10px;}
+  header p.sub{font-size:clamp(15px,2.4vw,19px);color:var(--muted);font-style:italic;margin:0;}
+  main{width:100%;display:flex;flex-direction:column;align-items:center;}
+  .flower-wrap{width:min(600px,96vw);}
+  svg#scene{width:100%;height:auto;display:block;overflow:hidden;}
+  .hint{text-align:center;color:var(--muted);font-style:italic;
+    font-size:clamp(14px,2.2vw,17px);margin:4px 0 12px;padding:0 22px;}
+  .controls{display:flex;gap:10px;margin:0 0 8px;}
+  #resetBtn{font-family:inherit;font-size:15px;color:var(--ink);background:#fffdf6;
+    border:1px solid #e3d5b8;border-radius:999px;padding:9px 22px;cursor:pointer;
+    box-shadow:0 1px 4px rgba(74,44,20,.08);transition:transform .15s ease,box-shadow .15s ease;}
+  #resetBtn:hover{transform:translateY(-1px);box-shadow:0 3px 10px rgba(74,44,20,.14);}
+  #status{font-size:13.5px;color:var(--muted);font-style:italic;min-height:20px;
+    text-align:center;padding:0 18px 30px;}
+  #head{transform-box:view-box;transform-origin:400px 330px;animation:sway 7s ease-in-out infinite alternate;}
+  body.has-expanded #head{animation-play-state:paused;}
+  @keyframes sway{from{transform:rotate(-.7deg)}to{transform:rotate(.7deg)}}
+  g.petal{cursor:pointer;}
+  g.petal .mover{will-change:transform;}
+  g.petal .petal-shape{transition:filter .2s ease;}
+  g.petal:hover .petal-shape{filter:brightness(1.05);}
+  g.petal.active .petal-shape{filter:brightness(1.06) drop-shadow(0 12px 20px rgba(74,44,20,.35));}
+  .petal-msg{opacity:0;transition:opacity .4s ease;pointer-events:none;}
+  .petal-msg.show{opacity:1;}
+  .petal-msg .box, #centerBox{width:100%;height:100%;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;text-align:center;color:#3a2507;
+    line-height:1.42;padding:6px 8px;}
+  #centerBox .b{font-size:17px;}
+  /* sunlight halo that lives on each petal and glows while it is pulled */
+  .sunglow{opacity:0;transition:opacity .6s ease;}
+  .sunglow.on{opacity:.55;}
+  /* secret centre */
+  #coreGlow{opacity:0;transition:opacity .8s ease;pointer-events:none;}
+  #centerMsgG{opacity:0;transition:opacity .5s ease;}
+  #centerMsgG.show{opacity:1;}
+  #centerMsgG foreignObject{pointer-events:none;}
+  #discLayer.unlocked{cursor:pointer;}
+  #discLayer.unlocked #coreGlow{opacity:.9;animation:corePulse 2.4s ease-in-out infinite;}
+  @keyframes corePulse{0%,100%{opacity:.9}50%{opacity:.5}}
+  footer{color:#b3a482;font-size:12.5px;font-style:italic;padding:0 0 32px;}
+  /* ---- opening ---- */
+  #intro{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;
+    background:radial-gradient(900px 600px at 50% 28%, #fffdf4 0%, var(--bg) 65%, #f2e8d2 100%);
+    transition:opacity .7s ease;padding:24px;}
+  #intro.hidden{opacity:0;pointer-events:none;}
+  .intro-inner{text-align:center;max-width:560px;padding:0 8px;}
+  #introLine{font-size:clamp(21px,3.6vw,28px);font-style:italic;line-height:1.6;min-height:3.4em;margin:0 0 18px;}
+  #introHint{color:var(--muted);font-size:14px;font-style:italic;margin:0;animation:pulse 1.6s ease-in-out infinite;}
+  @keyframes pulse{0%,100%{opacity:.45}50%{opacity:1}}
+  #introGo{font-family:inherit;font-size:17px;color:#fffdf4;background:#b57e15;border:none;border-radius:999px;
+    padding:12px 34px;cursor:pointer;margin-top:14px;box-shadow:0 4px 14px rgba(150,100,20,.35);}
+  #introSkip{background:none;border:none;color:var(--muted);font-family:inherit;font-style:italic;
+    font-size:14px;cursor:pointer;margin:14px auto 0;display:block;}
+</style>
+</head>
+<body>
+<header>
+  <h1>A little sunshine for you.</h1>
+  <p class="sub">Tap a petal and see what&rsquo;s waiting for you.</p>
+</header>
+<main>
+  <div class="flower-wrap">
+    <svg id="scene" viewBox="-10 -80 820 1200" role="img" aria-label="Interactive sunflower with twenty four petals">
+      <defs>
+        <radialGradient id="sunGlow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#ffedbe" stop-opacity=".9"/>
+          <stop offset="55%" stop-color="#ffe9a8" stop-opacity=".45"/>
+          <stop offset="100%" stop-color="#ffe9a8" stop-opacity="0"/>
+        </radialGradient>
+        <radialGradient id="coreGold" cx="50%" cy="42%" r="65%">
+          <stop offset="0%" stop-color="#ffe9a8"/>
+          <stop offset="55%" stop-color="#f7c948"/>
+          <stop offset="100%" stop-color="#f7c948" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+      <g id="stemLayer">
+        <path d="M400,412 C399,520 401,640 400,760" fill="none" stroke="#66854c"
+              stroke-width="14" stroke-linecap="round"/>
+        <path d="M398,600 C332,582 276,594 246,642 C296,668 354,658 398,622 Z"
+              fill="#7d9b5f" stroke="#5c7a42" stroke-width="2"/>
+        <path d="M268,630 C306,622 354,616 390,618" fill="none" stroke="#5c7a42" stroke-width="1.5"/>
+        <path d="M402,688 C466,672 520,682 550,728 C502,752 448,742 402,710 Z"
+              fill="#8aa865" stroke="#5c7a42" stroke-width="2"/>
+        <path d="M530,716 C492,708 446,704 410,706" fill="none" stroke="#5c7a42" stroke-width="1.5"/>
+      </g>
+      <g id="head">
+        <g id="petals"></g>
+        <g id="discLayer">
+          <circle cx="400" cy="330" r="94" fill="#241305"/>
+          <circle cx="400" cy="330" r="88" fill="#4a2c14"/>
+          <g id="florets"></g>
+          <g id="seeds"></g>
+          <circle cx="400" cy="330" r="88" fill="none" stroke="#1d0f04" stroke-width="2" opacity=".5"/>
+          <circle id="coreGlow" cx="400" cy="330" r="86" fill="url(#coreGold)"/>
+          <g id="centerMsgG" opacity="0">
+            <foreignObject x="315" y="275" width="170" height="110">
+              <div class="box" id="centerBox"><div class="b"></div></div>
+            </foreignObject>
+          </g>
+        </g>
+      </g>
+    </svg>
+  </div>
+  <p class="hint">Twenty four petals, twenty four little notes pick any one.</p>
+  <div class="controls"><button id="resetBtn" type="button">↺ &nbsp;Reset the flower</button></div>
+  <div id="status" aria-live="polite"></div>
+</main>
+<footer>grown with care, just for you 🌻</footer>
+
+<div id="intro">
+  <div class="intro-inner">
+    <p id="introLine"></p>
+    <p id="introHint">tap to continue ♡</p>
+    <button id="introGo" hidden>ready? 🌻</button>
+    <button id="introSkip" hidden>skip →</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ================================================================
+   EDIT YOUR MESSAGES HERE — one object per petal, one sentence each.
+   ring: "outer" (long ray) or "inner" (short ray)  •  angle in degrees.
+================================================================ */
+const PETAL_DATA = [
+  { id:"petal-01", ring:"outer", angle:0,   message:"I hope something unexpectedly good happens to you today, even if it's something really small." },
+  { id:"petal-02", ring:"inner", angle:15,  message:"You don't have to be okay every day, and you definitely don't have to pretend you are." },
+  { id:"petal-03", ring:"outer", angle:30,  message:"You don't have to earn your rest by finishing everything on your to do list first." },
+  { id:"petal-04", ring:"inner", angle:45,  message:"I hope you get at least one part of your day where you don't have to worry about anything." },
+  { id:"petal-05", ring:"outer", angle:60,  message:"You can tell me about a bad day without having to turn it into a funny story or pretend it wasn't that bad." },
+  { id:"petal-06", ring:"inner", angle:75,  message:"I hope you always have space to be yourself without feeling like you have to be the responsible one all the time." },
+  { id:"petal-07", ring:"outer", angle:90,  message:"I genuinely liked how you asked about my work and listened to my entire drone research rabbit hole." },
+  { id:"petal-08", ring:"inner", angle:105, message:"It's nice getting to tell you about things I'm excited about and having you actually be curious about them." },
+  { id:"petal-09", ring:"outer", angle:120, message:"I still think sharing cheesecake was an excellent decision, and honestly, we should probably repeat the experiment." },
+  { id:"petal-10", ring:"inner", angle:135, message:"The cheesecake evening was simple, but I really liked just sitting there and talking with you." },
+  { id:"petal-11", ring:"outer", angle:150, message:"I hope the little candy bag made you smile when you opened it, because that was the whole idea." },
+  { id:"petal-12", ring:"inner", angle:165, message:"I still stand by my candy selection, and I will be accepting absolutely no criticism on it." },
+  { id:"petal-13", ring:"outer", angle:180, message:"I like getting to know the little things about you that wouldn't come up in one big, serious conversation." },
+  { id:"petal-14", ring:"inner", angle:195, message:"It's funny how we can hehehehe." },
+  { id:"petal-15", ring:"outer", angle:210, message:"I would like to formally complain that one hour with you is not nearly enough time." },
+  { id:"petal-16", ring:"inner", angle:225, message:"You don't ever have to feel you cannot share anyting with me, you can i will always listen." },
+  { id:"petal-17", ring:"outer", angle:240, message:"For the record, you're a little distracting, and I don't think you take enough responsibility for that." },
+  { id:"petal-18", ring:"inner", angle:255, message:"I was going to write something sensible here, but then I remembered who this sunflower is for." },
+  { id:"petal-19", ring:"outer", angle:270, message:"I thought we were just going to have a normal little evening, and now I already want a sequel." },
+  { id:"petal-20", ring:"inner", angle:285, message:"There's still so much food to try, so many places to explore, and so many random conversations waiting for us." },
+  { id:"petal-21", ring:"outer", angle:300, message:"I hope I get to hear that laugh of yours a lot more, preferably because of something ridiculous I said." },
+  { id:"petal-22", ring:"inner", angle:315, message:"I hope people appreciate you for who you are, not just for everything you manage to do for them." },
+  { id:"petal-23", ring:"outer", angle:330, message:"May the rest of Navratri bring you more peace, fewer annoying people and something delicious to look forward to." },
+  { id:"petal-24", ring:"inner", angle:345, message:"And if you're smiling a little by now, then good this tiny sunflower was supposed to do exactly that. 🌻❤️" },
+];
+
+/* ---------- geometry ----------
+   TRUE PULL-OUT: the petal slides straight out along its own radial line
+   and ONLY gets longer (scale on the length axis — width never changes).
+   No swing, no travel across the flower, no fading of anything. */
+const CX = 400, CY = 330;
+const NS = "http://www.w3.org/2000/svg";
+const EXP_LEN = 400;      // medium pull — the short notes below fill this perfectly
+const TEXT_D = 242;       // note centre, measured out from the base along the petal
+const TEXT_W = 280, TEXT_H = 100;
+const FLOP_SX = 1.9;      // roomy enough for four lines at a comfortable size
+
+function jitter(i, amt){ const x = Math.sin(i*127.1+311.7)*43758.5453; return ((x-Math.floor(x))-0.5)*2*amt; }
+
+function petalPath(len, hw){
+  const l1=(len*0.45).toFixed(1), l2=(len*0.74).toFixed(1), l3=(len*0.90).toFixed(1);
+  return `M 0 0 C ${(-hw*0.62).toFixed(1)} ${(-len*0.17).toFixed(1)} ${(-hw*1.06).toFixed(1)} ${-l1} ${(-hw*0.94).toFixed(1)} ${-l2} ` +
+         `C ${(-hw*0.88).toFixed(1)} ${-l3} ${(-hw*0.44).toFixed(1)} ${(-len*0.96).toFixed(1)} 0 ${-len} ` +
+         `C ${(hw*0.44).toFixed(1)} ${(-len*0.96).toFixed(1)} ${(hw*0.88).toFixed(1)} ${-l3} ${(hw*0.94).toFixed(1)} ${-l2} ` +
+         `C ${(hw*1.06).toFixed(1)} ${-l1} ${(hw*0.62).toFixed(1)} ${(-len*0.17).toFixed(1)} 0 0 Z`;
+}
+
+/* Text runs along the petal ribbon; flip it 180° whenever it would read
+   upside-down, so notes are always legible and never inverted. */
+function textFlip(a){
+  const t = ((a - 90 + 540) % 360) - 180;
+  return Math.abs(t) <= 90 ? -90 : 90;
+}
+
+const petalsLayer = document.getElementById("petals");
+const statusEl = document.getElementById("status");
+const state = {};
+const moverById = {}, shapeById = {}, outerById = {}, msgById = {}, textBodyById = {};
+const expSyById = {}, fontById = {}, glowById = {};
+let activeId = null, busy = false;
+
+/* ================================================================
+   THE SECRET CENTRE — unlocks after all 24 petals are read.
+   ★ REPLACE the placeholder below with your own words. ★
+================================================================ */
+const CENTER_MESSAGE = "Okay, one last thing. There's still a proper date I want to take you on. ❤️";
+const READ_KEY = "sunflowerReadV1";
+let readSet = new Set();
+try{ readSet = new Set(JSON.parse(localStorage.getItem(READ_KEY) || "[]")); }catch(e){}
+let discUnlocked = false, centerOpen = false;
+function persistRead(){ try{ localStorage.setItem(READ_KEY, JSON.stringify([...readSet])); }catch(e){} }
+function progressStr(){ return `${readSet.size} of 24 read`; }
+
+/* ---------- disc ---------- */
+(function disc(){
+  const fl = document.getElementById("florets");
+  for(let k=0;k<40;k++){
+    const a = k/40*Math.PI*2, r = 74 + (k%2)*6;
+    const c = document.createElementNS(NS,"circle");
+    c.setAttribute("cx",(CX+r*Math.cos(a)).toFixed(1));
+    c.setAttribute("cy",(CY+r*Math.sin(a)).toFixed(1));
+    c.setAttribute("r", k%2 ? "3.4" : "4.4");
+    c.setAttribute("fill", k%2 ? "#8a5a26" : "#a06c2c");
+    fl.appendChild(c);
+  }
+  const g = document.getElementById("seeds");
+  const N = 170, golden = Math.PI*(3-Math.sqrt(5));
+  for(let i=0;i<N;i++){
+    const r = 5 + 58*Math.sqrt(i/N), a = i*golden;
+    const x = CX+r*Math.cos(a), y = CY+r*Math.sin(a)*0.96;
+    const e = document.createElementNS(NS,"ellipse");
+    e.setAttribute("cx",x.toFixed(1)); e.setAttribute("cy",y.toFixed(1));
+    e.setAttribute("rx",(3.6-1.2*(r/64)).toFixed(2));
+    e.setAttribute("ry",(5.2-1.6*(r/64)).toFixed(2));
+    e.setAttribute("transform",`rotate(${(a*180/Math.PI+90).toFixed(1)} ${x.toFixed(1)} ${y.toFixed(1)})`);
+    e.setAttribute("fill", i%2 ? "#5f3a1a" : "#75501f");
+    e.setAttribute("opacity",".9");
+    g.appendChild(e);
+  }
+})();
+
+const SHAPE_BASE = "scale(1, 1)";
+const SHAPE_TUG = "scale(1, 1.1)";
+
+/* ---------- build ---------- */
+["outer","inner"].forEach(ring=>{
+  PETAL_DATA.filter(p=>p.ring===ring).forEach(p=>{
+    const idx = PETAL_DATA.indexOf(p);
+    state[p.id] = "idle";
+    const isOuter = ring==="outer";
+    const len = (isOuter?300:232) + jitter(idx,7);
+    const hw  = (isOuter?32:36) + jitter(idx+50,2.5);
+    const ang = p.angle + jitter(idx+99,1.4);
+    expSyById[p.id] = EXP_LEN/len;
+    const R = textFlip(ang);
+
+    const defs = document.querySelector("#scene defs");
+    const lg = document.createElementNS(NS,"linearGradient");
+    lg.setAttribute("id","grad-"+p.id);
+    lg.setAttribute("x1","0"); lg.setAttribute("y1","1");
+    lg.setAttribute("x2","0"); lg.setAttribute("y2","0");
+    const base = isOuter ? "#cf8618" : "#d89422";
+    const mid  = isOuter ? "#eeb844" : "#f4c452";
+    const tip  = isOuter ? "#f7dc96" : "#f9e5ab";
+    [["0%",base],["55%",mid],["100%",tip]].forEach(([o,c])=>{
+      const s=document.createElementNS(NS,"stop");
+      s.setAttribute("offset",o); s.setAttribute("stop-color",c); lg.appendChild(s);
+    });
+    defs.appendChild(lg);
+
+    const outer = document.createElementNS(NS,"g");
+    outer.setAttribute("class","petal");
+    outer.setAttribute("transform",`translate(${CX},${CY}) rotate(${ang.toFixed(1)})`);
+    outerById[p.id]=outer;
+
+    const mover = document.createElementNS(NS,"g");
+    mover.setAttribute("class","mover");
+    moverById[p.id]=mover;
+
+    /* sunlight halo: rides on the petal, glows while it is pulled */
+    const glow = document.createElementNS(NS,"ellipse");
+    glow.setAttribute("cx","0"); glow.setAttribute("cy",String(-TEXT_D));
+    glow.setAttribute("rx","90"); glow.setAttribute("ry","200");
+    glow.setAttribute("fill","url(#sunGlow)");
+    glow.setAttribute("class","sunglow");
+    mover.appendChild(glow);
+    glowById[p.id]=glow;
+
+    const shaper = document.createElementNS(NS,"g");
+    shapeById[p.id]=shaper;
+
+    const shape = document.createElementNS(NS,"path");
+    shape.setAttribute("d",petalPath(len,hw));
+    shape.setAttribute("class","petal-shape");
+    shape.setAttribute("fill",`url(#grad-${p.id})`);
+    shape.setAttribute("stroke", isOuter ? "#a86f10" : "#b57e15");
+    shape.setAttribute("stroke-width","1");
+    shaper.appendChild(shape);
+
+    const crease = document.createElementNS(NS,"path");
+    crease.setAttribute("d",`M 0 ${(-len*0.08).toFixed(1)} C ${(-hw*0.1).toFixed(1)} ${(-len*0.4).toFixed(1)} 0 ${(-len*0.88).toFixed(1)}`);
+    crease.setAttribute("fill","none"); crease.setAttribute("stroke","#a86f10");
+    crease.setAttribute("stroke-width","1.8"); crease.setAttribute("opacity",".5");
+    shaper.appendChild(crease);
+    [-0.45, 0.45].forEach(f=>{
+      const v = document.createElementNS(NS,"path");
+      v.setAttribute("d",`M ${(hw*f*0.4).toFixed(1)} ${(-len*0.12).toFixed(1)} C ${(hw*f).toFixed(1)} ${(-len*0.45).toFixed(1)} ${(hw*f*0.5).toFixed(1)} ${(-len*0.8).toFixed(1)}`);
+      v.setAttribute("fill","none"); v.setAttribute("stroke","#b57e15");
+      v.setAttribute("stroke-width","1"); v.setAttribute("opacity",".45");
+      shaper.appendChild(v);
+    });
+    const hl = document.createElementNS(NS,"path");
+    hl.setAttribute("d",`M ${(-hw*0.42).toFixed(1)} ${(-len*0.30).toFixed(1)} C ${(-hw*0.55).toFixed(1)} ${(-len*0.55).toFixed(1)} ${(-hw*0.30).toFixed(1)} ${(-len*0.75).toFixed(1)} C ${(-hw*0.42).toFixed(1)} ${(-len*0.55).toFixed(1)} ${(-hw*0.36).toFixed(1)} ${(-len*0.38).toFixed(1)} ${(-hw*0.30).toFixed(1)} ${(-len*0.32).toFixed(1)} Z`);
+    hl.setAttribute("fill","#ffffff"); hl.setAttribute("opacity",".22");
+    shaper.appendChild(hl);
+    mover.appendChild(shaper);
+
+    /* Note sits ON the petal ribbon: out along its stretched length, flipped
+       only if it would read upside-down. Hidden until the pull finishes. */
+    const textG = document.createElementNS(NS,"g");
+    textG.setAttribute("transform",`translate(0, ${-TEXT_D}) rotate(${R})`);
+    const fo = document.createElementNS(NS,"foreignObject");
+    fo.setAttribute("class","petal-msg");
+    fo.setAttribute("x",String(-TEXT_W/2)); fo.setAttribute("y",String(-TEXT_H/2));
+    fo.setAttribute("width",String(TEXT_W)); fo.setAttribute("height",String(TEXT_H));
+    const box = document.createElement("div");
+    box.setAttribute("class","box");
+    const fs = 17;  // comfortable reading size for the curated notes
+    fontById[p.id] = fs;
+    box.innerHTML = `<div class="b" style="font-size:${fs}px"></div>`;
+    box.querySelector(".b").textContent = p.message;
+    fo.appendChild(box);
+    textG.appendChild(fo);
+    mover.appendChild(textG);
+    msgById[p.id]=fo; textBodyById[p.id]=box;
+
+    outer.appendChild(mover);
+    petalsLayer.appendChild(outer);
+
+    shaper.animate(
+      [{transform:"scale(.3)",opacity:".1"},{transform:"scale(1)",opacity:"1"}],
+      {duration:750, delay:300+idx*45, easing:"cubic-bezier(.22,.9,.3,1.12)", fill:"backwards"}
+    );
+
+    outer.addEventListener("pointerup", e=>{ e.stopPropagation(); onTap(p.id); });
+    outer.style.touchAction = "manipulation";
+  });
+});
+
+window.addEventListener("resize", ()=>{
+  Object.entries(textBodyById).forEach(([id, box])=>{
+    box.querySelector(".b").style.fontSize = fontById[id]+"px";
+  });
+});
+
+/* ---------- choreography: stretch while rooted ---------- */
+function setStatus(t){ statusEl.textContent = t; }
+
+/* Neighbouring petals rustle ever so slightly when one is touched.
+   Fire-and-forget: short, subtle, self-cleaning (no fill). */
+function nudgeNeighbors(id){
+  const i = PETAL_DATA.findIndex(p=>p.id===id);
+  [[PETAL_DATA[(i+23)%24].id,-2.2],[PETAL_DATA[(i+1)%24].id,2.2]].forEach(([nid,push])=>{
+    if(state[nid]!=="idle") return;
+    try{
+      moverById[nid].animate(
+        [{transform:"rotate(0deg)"},{transform:`rotate(${push}deg)`,offset:.35},
+         {transform:`rotate(${(-push*0.5).toFixed(2)}deg)`,offset:.65},{transform:"rotate(0deg)"}],
+        {duration:850,easing:"ease-in-out"});
+    }catch(e){}
+  });
+}
+
+function refreshUnlock(){
+  if(readSet.size>=PETAL_DATA.length && !discUnlocked){
+    discUnlocked = true;
+    document.getElementById("discLayer").classList.add("unlocked");
+    setStatus("all 24 petals read 🌻 something in the middle is glowing…");
+  }
+}
+
+function onTap(id){
+  if(!entered) return;
+  if(busy || state[id]==="pulling" || state[id]==="returning") return;
+  if(activeId===id && state[id]==="expanded"){ retract(id); return; }
+  if(activeId && activeId!==id){ switchPetal(activeId,id); return; }
+  expand(id);
+}
+
+async function stretch(shaper, sKeys, dur, ease){
+  const a = shaper.animate(sKeys,{duration:dur,easing:ease,fill:"forwards"});
+  try{ await a.finished; }catch(e){}
+}
+
+/* (no camera — the frame stays put) */
+
+async function expand(id){
+  busy = true;
+  const shaper = shapeById[id], outer = outerById[id];
+  const sy = expSyById[id];
+  const S_EXP = `scale(${FLOP_SX}, ${sy.toFixed(3)})`;
+  state[id]="pulling";
+  document.body.classList.add("has-expanded");
+  const n = id.slice(-2);
+  setStatus(`pulling petal ${n}…`);
+  outer.classList.add("active");
+  nudgeNeighbors(id);
+  /* pull: tug, then length grows */
+  await stretch(shaper,
+    [{transform:SHAPE_BASE},{transform:SHAPE_TUG,offset:.3},
+     {transform:`scale(${FLOP_SX}, ${(sy*1.015).toFixed(3)})`,offset:.82},
+     {transform:S_EXP}],
+    950, "cubic-bezier(.22,.9,.28,1)");
+  shaper.style.transform = S_EXP;
+  state[id]="expanded"; activeId=id;
+  msgById[id].classList.add("show");       // note fades in on the petal
+  glowById[id].classList.add("on");        // sunlight follows it
+  if(!readSet.has(id)){ readSet.add(id); persistRead(); }
+  setStatus(`petal ${n} — tap it again to slide it back.`);
+  refreshUnlock();
+  busy=false;
+}
+
+async function retract(id, silent){
+  busy = true;
+  const shaper = shapeById[id], outer = outerById[id];
+  state[id]="returning";
+  msgById[id].classList.remove("show");    // note fades first…
+  glowById[id].classList.remove("on");
+  await new Promise(r=>setTimeout(r,220));
+  await stretch(shaper,                          // petal slides back to length
+    [{transform:shaper.style.transform||`scale(${FLOP_SX}, ${expSyById[id].toFixed(3)})`},{transform:SHAPE_BASE}],
+    600, "cubic-bezier(.4,.1,.3,1)");
+  shaper.style.transform = "";
+  outer.classList.remove("active");
+  state[id]="idle";
+  if(activeId===id) activeId=null;
+  if(!activeId) document.body.classList.remove("has-expanded");
+  if(!silent) setStatus(`back in the flower — ${progressStr()} ♡`);
+  busy=false;
+}
+
+async function switchPetal(oldId, newId){
+  busy = true;
+  msgById[oldId].classList.remove("show");
+  glowById[oldId].classList.remove("on");
+  state[oldId]="returning";
+  await new Promise(r=>setTimeout(r,220));
+  const so = shapeById[oldId];
+  try{
+    await so.animate(
+      [{transform:so.style.transform||`scale(${FLOP_SX}, ${expSyById[oldId].toFixed(3)})`},{transform:SHAPE_BASE}],
+      {duration:480,easing:"cubic-bezier(.4,.1,.3,1)",fill:"forwards"}).finished;
+  }catch(e){}
+  so.style.transform = "";
+  outerById[oldId].classList.remove("active");
+  state[oldId]="idle"; activeId=null;
+  busy=false;
+  await expand(newId);
+}
+
+async function resetAll(){
+  if(busy) return;
+  if(centerOpen) closeCenter(true);
+  if(!activeId){ setStatus("the flower is already whole 🌻"); return; }
+  await retract(activeId);
+  setStatus("the whole sunflower is back together 🌻");
+}
+document.getElementById("resetBtn").addEventListener("click", resetAll);
+document.getElementById("scene").addEventListener("pointerup", e=>{
+  if(e.target.closest && e.target.closest("g.petal")) return;
+  if(activeId && !busy) retract(activeId);
+});
+
+/* ---------- secret centre ---------- */
+document.querySelector("#centerBox .b").textContent = CENTER_MESSAGE;
+const discLayerEl = document.getElementById("discLayer");
+discLayerEl.style.touchAction = "manipulation";
+discLayerEl.addEventListener("pointerup", e=>{
+  e.stopPropagation();
+  if(!entered || busy) return;
+  if(activeId){ setStatus("tuck the petal back first, then tap the middle ♡"); return; }
+  if(centerOpen){ closeCenter(); return; }
+  if(!discUnlocked){
+    setStatus(`the middle opens after all 24 petals — ${progressStr()} 🌻`);
+    try{
+      discLayerEl.animate(
+        [{transform:"translateX(0px)"},{transform:"translateX(-5px)",offset:.3},
+         {transform:"translateX(5px)",offset:.6},{transform:"translateX(0px)"}],
+        {duration:320,easing:"ease-in-out"});
+    }catch(err){}
+    return;
+  }
+  centerOpen = true;
+  document.getElementById("centerMsgG").classList.add("show");
+  setStatus("one last thing, just for you ♡ (tap the middle to close)");
+});
+function closeCenter(silent){
+  centerOpen = false;
+  document.getElementById("centerMsgG").classList.remove("show");
+  if(!silent) setStatus(`closed — ${progressStr()} ♡`);
+}
+refreshUnlock();
+
+/* ================================================================
+   OPENING — edit the intro lines here.
+================================================================ */
+const INTRO_LINES = [
+  "i know i haven't gotten around to getting you your fav flowers (yet)",
+  "but until then, i hope this makes up for it and makes you feel a bit warmer…",
+];
+let entered = false, introIx = -1;
+const introEl = document.getElementById("intro");
+const introLine = document.getElementById("introLine");
+const introHint = document.getElementById("introHint");
+const introGo = document.getElementById("introGo");
+const introSkip = document.getElementById("introSkip");
+try{ if(localStorage.getItem("sunflowerSeen")) introSkip.hidden = false; }catch(e){}
+function advanceIntro(){
+  introIx++;
+  if(introIx < INTRO_LINES.length){
+    introLine.textContent = INTRO_LINES[introIx];
+  } else {
+    introHint.style.display = "none";
+    introGo.hidden = false;
+    introLine.textContent = "this one's for you ♡";
+  }
+}
+introEl.addEventListener("pointerup", e=>{
+  if(e.target.closest("button")) return;
+  if(!introGo.hidden) return;
+  advanceIntro();
+});
+introGo.addEventListener("click", enterFlower);
+introSkip.addEventListener("click", enterFlower);
+function enterFlower(){
+  if(entered) return;
+  entered = true;
+  introEl.classList.add("hidden");
+  try{ localStorage.setItem("sunflowerSeen","1"); }catch(e){}
+  setStatus("the flower is all yours — tap a petal 🌻");
+  try{
+    document.getElementById("head").animate(
+      [{transform:"scale(.965)"},{transform:"scale(1)"}],{duration:650,easing:"ease-out"});
+  }catch(e){}
+}
+advanceIntro();
+</script>
+</body>
+</html>
